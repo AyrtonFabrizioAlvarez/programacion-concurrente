@@ -180,3 +180,208 @@ Process Usuario-Baja[I: 1 to K]:
 *Supongamos el siguiente caso:*
  - *En un momento determinado tenemos en la BD 4 usuario-alta (maximo permitido) y 2 usuario-baja*
  - *en ese caso no hay otro usuario-alta que haya pasado el primer semaforo P(alta), pero si existen usuario-baja que pasaron su primer semaforo P(baja) y que al liberarse un espacio del segundo semaforo P(total), entonces un usuario-baja puede entrar a la BD*
+
+
+## Ejercicio 5
+### En una empresa de logística de paquetes existe una sala de contenedores donde se preparan las entregas. Cada contenedor puede almacenar un paquete y la sala cuenta con capacidad para N contenedores. Resuelva considerando las siguientes situaciones: 
+
+#### a. La empresa cuenta con 2 empleados: un empleado Preparador que se ocupa de preparar los paquetes y dejarlos en los contenedores; un empelado Entregador que se ocupa de tomar los paquetes de los contenedores y realizar la entregas. Tanto el Preparador como el Entregador trabajan de a un paquete por vez. 
+
+*asumo la existencia de 2 metodos (generar_paquete() y consumir_paquete())*
+
+```c
+int sala[N];
+int ocupado = 0;  //representa la proxima posicion ocupada (para tomar paquete)
+int libre = 0;    //representa la proxima posicion libre (para depositar paquete)
+sem vacio = N;    //indica que la sala esta vacia (inicialmente lo esta)
+sem lleno = 0;    //indica que la sala esta completa
+
+Process Preparador:  //deposita los paquetes
+    Paquete paquete = generar_paquete()
+    P(vacio)
+    sala[libre] = paquete;
+    libre = (libre + 1) mod N
+    V(lleno)
+
+Process Entregador:  //toma los paquetes
+    P(lleno)
+    Paquete paquete = sala[ocupado]
+    ocupado = (ocupado + 1) mod N
+    V(vacio)
+    consumir_paquete(paquete)
+```
+
+
+#### b. Modifique la solución a para el caso en que haya P empleados Preparadores. 
+
+```c
+int sala[N];
+int ocupado = 0;
+int libre = 0;
+sem vacio = N;
+sem lleno = 0;
+sem preparador_libre = 1;    //controla si hay otro preparador trabajando en la sala
+
+Process Preparador[id: 1 to P]:
+    Paquete paquete = generar_paquete()
+    P(vacio)
+    P(preparador_libre)
+    sala[libre] = paquete
+    libre = (libre + 1) mod N
+    V(preparador_libre)
+    V(lleno)
+
+Process Entregador:
+    P(lleno)
+    Paquete paquete = sala[ocupado]
+    ocupado = (ocupado + 1) mod N
+    V(vacio)
+    consumir_paquete(paquete)
+```
+
+#### c. Modifique la solución a para el caso en que haya E empleados Entregadores. 
+
+```c
+int sala[N];
+int ocupado = 0;
+int libre = 0;
+sem vacio = N;
+sem lleno = 0;
+sem entregador_libre = 1;
+
+Process Preparador:
+    Paquete paquete = generar_paquete()
+    P(vacio)
+    sala[libre] = paquete
+    libre = (libre + 1) mod N
+    V(lleno)
+
+Process Entregador[id: 1 to E]:
+    P(lleno)
+    P(entregador_libre)
+    Paquete paquete = sala[ocupado]
+    ocupado = (ocupado + 1) mod N
+    V(vacio)
+    consumir_paquete(paquete)
+```
+
+#### d. Modifique la solución a para el caso en que haya P empleados Preparadores y E empleadores Entregadores. 
+
+```c
+int sala[N];
+int ocupado = 0;
+int vacio = 0;
+sem vacio = N;
+sem lleno = 0;
+sem entregador_libre = 1;
+sem preparador_libre = 1;
+
+Process Preparador[id: 1 to P]:
+    Paquete paquete = generar_paquete()
+    P(vacio)
+    P(preparador_libre)
+    sala[ocupado] = paquete
+    ocupado = (ocupado + 1) mod N
+    V(preparador_libre)
+    V(lleno)
+
+Process Entregador[id: 1 to E]:
+    P(lleno)
+    P(entregador_libre)
+    Paquete paquete = sala[libre]
+    libre = (libre + 1) mod N
+    V(entregador_libre)
+    V(vacio)
+
+```
+
+## Ejercicio 6
+### Existen N personas que deben imprimir un trabajo cada una. Resolver cada ítem usando semáforos: 
+
+#### a. Implemente una solución suponiendo que existe una única impresora compartida por todas las personas, y las mismas la deben usar de a una persona a la vez, sin importar el orden. Existe una función Imprimir(documento) llamada por la persona que simula el uso de la impresora. Sólo se deben usar los procesos que representan a las Personas. 
+
+```c
+sem impresora_libre = 1;
+
+Process Persona[id: 1 to N]:
+    P(impresora_libre)
+    Imprimir(documento)
+    V(impresora_libre)
+```
+
+#### b. Modifique la solución de (a) para el caso en que se deba respetar el orden de llegada. 
+
+```c
+Cola cola;
+sem esperando[N] = ([N] 0);
+sem acceso_a_cola = 1;
+bool existe_proceso_encolado = false;
+
+Process Persona [id: 1 to N]{
+    int proximo_id;
+    P(acceso_a_cola);
+    if (!existe_proceso_encolado){
+        existe_proceso_encolado = true; //para avisar que tienen que empezar a encolarse
+        V(acceso_a_cola);
+    }
+    else {
+        cola.push(id);
+        V(acceso_a_cola);
+        P(espera[id]);
+    }
+    Imprimir(documento);
+    P(acceso_a_cola);
+    if (cola.isEmpty()){
+        existe_proceso_encolado = false;
+    }
+    else {
+        proximo_id = cola.pop();
+        V(espera[proximo_id]);
+    }
+    V(acceso_a_cola);
+}
+
+```
+
+#### c. Modifique la solución de (a) para el caso en que se deba respetar estrictamente el orden dado por el identificador del proceso (la persona X no puede usar la impresora hasta que no haya terminado de usarla la persona X-1). 
+
+```c
+sem esperando[N] = ([N] 0);
+int turno_siguiente = 1;
+
+Process Persona[id: 1 to N]:
+    if (id != turno_siguiente):
+        P(esperando[id])
+    Imprimir(documento)
+    turno_siguiente = turno_siguiente + 1
+    V(esperando[turno_siguiente])
+```
+
+
+
+#### d. Modifique la solución de (b) para el caso en que además hay un proceso Coordinador que le indica a cada persona que es su turno de usar la impresora. 
+
+```c
+Cola cola;
+int siguiente = 0;
+sem existe_peticion = 0;
+sem impresora_libre = 0;
+sem cola_libre = 1;
+sem esperando[P] = ([P] 0)
+
+Process Persona[id: 1 to P]:
+    P(cola_libre)
+    cola.push(id)
+    V(cola_libre)
+    P(esperando[id])
+    Imprimir(documento)
+    V(impresora_libre)
+
+Process Coordinador:
+    P(cola_libre)
+    siguiente = cola.pop()
+    V(cola_libre)
+    V(esperando[siguiente])
+```
+
+#### e. Modificar la solución (d) para el caso en que sean 5 impresoras. El coordinador le indica a la persona cuando puede usar una impresora, y cual debe usar. 
