@@ -1,0 +1,18 @@
+# Ignorar archivos compilados
+*.class
+*.pyc
+
+# Ignorar archivos de configuración
+config.ini
+.env
+
+# Ignorar archivos de caché
+cache/*
+
+# Ignorar archivos de logs
+logs/*
+
+# Ignorar archivos multimedia
+*.mp4
+*.avi
+*.mov
