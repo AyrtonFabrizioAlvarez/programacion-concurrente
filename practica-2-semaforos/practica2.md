@@ -363,25 +363,179 @@ Process Persona[id: 1 to N]:
 
 ```c
 Cola cola;
-int siguiente = 0;
+sem acceso_a_cola = 1;
 sem existe_peticion = 0;
-sem impresora_libre = 0;
-sem cola_libre = 1;
-sem esperando[P] = ([P] 0)
+sem recurso_libre = 0;
+sem esperando_recurso[P] = ([P] 0)
 
 Process Persona[id: 1 to P]:
-    P(cola_libre)
+    //espero que este libre la cola para encolarme
+    P(acceso_a_cola)
     cola.push(id)
-    V(cola_libre)
-    P(esperando[id])
+    V(acceso_a_cola)
+    //aviso que estoy esperando
+    V(existe_peticion)
+    //espero que me avisen que puedo pasar
+    P(esperando_recurso[id])
     Imprimir(documento)
-    V(impresora_libre)
+    //aviso que termine de usar el recurso
+    V(recurso_libre)
 
 Process Coordinador:
-    P(cola_libre)
-    siguiente = cola.pop()
-    V(cola_libre)
-    V(esperando[siguiente])
+    //para todas las personas (1..P)
+    for (int i=1 ; i=P ; i++)
+        //espero que haya alguien esperando
+        P(existe_peticion)
+        //indico que puede usar la impresora
+        P(acceso_a_cola)
+        V(esperando_recurso[cola.pop()])
+        V(acceso_a_cola)
+        //espero que dejen de usar la impresora
+        P(recurso_libre)
 ```
 
 #### e. Modificar la solución (d) para el caso en que sean 5 impresoras. El coordinador le indica a la persona cuando puede usar una impresora, y cual debe usar. 
+
+```c
+Cola cola;
+Cola cola_impresora_libre[5];
+int impresora_indicada[P] = ([P] 0)
+sem esperando_recurso[P] = ([P] 0)
+sem recurso_libre = 5
+sem acceso_a_cola_persona = 1
+sem acceso_a_cola_impresora = 1
+sem existe_peticion = 0
+
+Process Persona[id: 1 to P]:
+    P(acceso_a_cola_persona)
+    cola.push(id)
+    V(acceso_a_cola_persona)
+
+    V(existe_peticion)
+
+    P(esperando_recurso[id])
+
+    Imprimir(documento)
+
+    P(acceso_a_cola_impresora)
+    cola_impresora_libre.push(impresora_indicada[id])
+    V(acceso_a_cola_impresora)
+
+    V(recurso_libre)
+
+
+Process Coordinador:
+    int siguiente = 0
+    for (int i=1 ; i==P ; i++)
+        P(existe_peticion)
+
+        P(acceso_a_cola_persona)
+        siguiente = cola.pop()
+        V(acceso_a_cola_persona)
+
+        P(acceso_a_cola_impresora)
+        impresora_indicada[siguiente] = cola_impresora_libre.pop()
+        V(acceso_a_cola_impresora)
+
+        V(esperando_recurso[siguiente])
+        
+        P(recurso_libre)
+```
+
+
+## Ejercicio 7
+### Suponga que se tiene un curso con 50 alumnos. Cada alumno debe realizar una tarea y existen 10 enunciados posibles. Una vez que todos los alumnos eligieron su tarea, comienzan a realizarla. Cada vez que un alumno termina su tarea, le avisa al profesor y se queda esperando el puntaje del grupo (depende de todos aquellos que comparten el mismo enunciado). Cuando un grupo terminó, el profesor les otorga un puntaje que representa el orden en que se terminó esa tarea de las 10 posibles.
+*Nota: Para elegir la tarea suponga que existe una función elegir que le asigna una tarea a un alumno (esta función asignará 10 tareas diferentes entre 50 alumnos, es decir, que 5 alumnos tendrán la tarea 1, otros 5 la tarea 2 y así sucesivamente para las 10 tareas).*
+
+```c
+sem esperando_barrera1[50] = ([50] 0);
+int barrera1 = 50;
+sem barrera1_libre = 1;
+Cola cola[50];
+sem cola_libre = 1;
+sem alumno_finalizo = 0;
+int puntaje[10] = ([10] 0)
+sem finalizaron[10] = ([10] 0)
+
+Process Alumno[id 1 to 50]:
+    //tomar una tarea
+    int tarea = asignar_tarea()
+    //espero a que los 50 alumnos tengan su tarea (barrera1)
+    P(barrera1_libre)
+    barrera1 = barrera1 - 1
+    if (barrera1 > 0):
+        V(barrera1_libre)
+    else:
+        //si soy el ultimo en tomar una tarea despierto al resto
+        V(barrera_libre)
+        for (int i=1 ; i==50 ;i++):
+            V(esperando_barrera1[j])
+    P(esperando_barrera1[id])
+    //realizo mi tarea
+    realizar_tarea(tarea)
+    //encolo la tarea que finalice
+    P(cola_libre)
+    cola.push(tarea)
+    V(cola_libre)
+    //avisar al profesor que termine tarea
+    V(alumno_finalizo)
+    P(finalizaron[tarea])
+
+Process Profesor:
+    //para cada uno de los 50 alumnos
+    int tarea = -1
+    int nota = 1
+    int tareas_finalizadas[10] = ([10] 0);
+    for (int i=1 ; 1==50 ; i++):
+        P(alumno_finalizo)
+        P(cola_libre)
+        tarea = cola.pop()
+        V(cola_libre)
+        tareas_finalizadas[tarea] = tareas_finalizadas[tarea] + 1
+        //verifico si el grupo ya termino
+        if (tareas_finalizadas[tarea] == 5):
+            puntaje[tarea] = nota
+            nota = nota + 1
+            //por cada uno de los integrantes del grupo qeu ya finalizo
+            for (int i=1 ; i==5 ; i++):
+                V(finalizaron[tarea])
+```
+
+## Ejercicio 8 
+### Una fábrica de piezas metálicas debe producir T piezas por día. Para eso, cuenta con E empleados que se ocupan de producir las piezas de a una por vez. La fábrica empieza a producir una vez que todos los empleados llegaron. Mientras haya piezas por fabricar, los empleados tomarán una y la realizarán. Cada empleado puede tardar distinto tiempo en fabricar una pieza. Al finalizar el día, se debe conocer cual es el empleado que más piezas fabricó. 
+
+#### a. Implemente una solución asumiendo que T > E. 
+
+
+#### b. Implemente una solución que contemple cualquier valor de T y E.
+
+
+## Ejercicio 9
+### Resolver el funcionamiento en una fábrica de ventanas con 7 empleados (4 carpinteros, 1 vidriero y 2 armadores) que trabajan de la siguiente manera:
+ - Los carpinteros continuamente hacen marcos (cada marco es armando por un único carpintero) y los deja en un depósito con capacidad de    almacenar 30 marcos.
+ - El vidriero continuamente hace vidrios y los deja en otro depósito con capacidad para 50 vidrios. 
+ - Los armadores continuamente toman un marco y un vidrio (en ese orden) de los depósitos correspondientes y arman la ventana (cada ventana es armada por un único armador).
+
+
+## Ejercicio 10
+### A una cerealera van T camiones a descargarse trigo y M camiones a descargar maíz. Sólo hay lugar para que 7 camiones a la vez descarguen, pero no pueden ser más de 5 del mismo tipo de cereal.  
+
+
+#### a. Implemente una solución que use un proceso extra que actúe como coordinador entre los camiones. El coordinador debe retirarse cuando todos los camiones han descargado. 
+
+
+#### b. Implemente una solución que no use procesos adicionales (sólo camiones).
+
+
+## Ejercicio 11
+### En un vacunatorio hay un empleado de salud para vacunar a 50 personas. El empleado de salud atiende a las personas de acuerdo con el orden de llegada y de a 5 personas a la vez. Es decir, que cuando está libre debe esperar a que haya al menos 5 personas esperando, luego vacuna a las 5 primeras personas, y al terminar las deja ir para esperar por otras 5. Cuando ha atendido a las 50 personas el empleado de salud se retira. Nota: todos los procesos deben terminar su ejecución; suponga que el empleado tienen una función VacunarPersona() que simula que el empleado está vacunando a UNA persona.
+
+
+## Ejercicio 12
+### Simular la atención en una Terminal de Micros que posee 3 puestos para hisopar a 150 pasajeros. En cada puesto hay una Enfermera que atiende a los pasajeros de acuerdo con el orden de llegada al mismo. Cuando llega un pasajero se dirige al Recepcionista, quien le indica qué puesto es el que tiene menos gente esperando. Luego se dirige al puesto y espera a que la enfermera correspondiente lo llame para hisoparlo. Finalmente, se retira.
+
+#### a. Implemente una solución considerando los procesos Pasajeros, Enfermera y Recepcionista. 
+
+#### b. Modifique la solución anterior para que sólo haya procesos Pasajeros y Enfermera, siendo los pasajeros quienes determinan por su cuenta qué puesto tiene menos personas esperando. 
+
+*Nota: suponga que existe una función Hisopar() que simula la atención del pasajero por parte de la enfermera correspondiente.*
