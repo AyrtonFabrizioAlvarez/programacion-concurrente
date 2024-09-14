@@ -496,7 +496,7 @@ Process Profesor:
         if (tareas_finalizadas[tarea] == 5):
             puntaje[tarea] = nota
             nota = nota + 1
-            //por cada uno de los integrantes del grupo qeu ya finalizo
+            //libero a cada uno de los integrantes del grupo qeu ya finalizo
             for (int i=1 ; i==5 ; i++):
                 V(finalizaron[tarea])
 ```
@@ -506,8 +506,51 @@ Process Profesor:
 
 #### a. Implemente una solución asumiendo que T > E. 
 
+```c
+Cola piezas_a_trabajar[T];
+sem cola_piezas_libre = 1;
+int barrera_llegada = 0;
+sem barrera_llegada_libre = 1;
+sem esperando_empleados[E] = ([E] 0)
+int piezas_trabajadas[E] = ([E] 0)
+
+Process Empleado[id: 1 to E]:
+    //barrera para esperar que lleguen todos los trabajadores
+    P(barrera_empleados_libre)
+    barrera_llegada++
+    if (barrera_llegada < E):
+        V(barrera_empleados_libre)
+    else:
+        V(barrera_empleados_libre)
+        for (int i=1 ; i==E ; i++):
+            V(esperando_empleados[i])
+    //me quedo esperando a que lleguen todos los trabajadores
+    P(esperando_empleados[id])
+    //necesito tomar piezas mientras existan (son T piezas en total)
+    P(cola_piezas_libre)
+    while (!piezas_a_trabajar.isEmpty()):
+        //tomo una pieza para trabajarla
+        Pieza pieza = piezas_a_trabajar.pop()
+        V(cola_piezas_libre)
+        pieza.fabricar()
+        piezas_trabajadas[id]++;
+        P(cola_piezas_libre)
+    V(cola_piezas_libre)
+    //hago otra barrera para asegurarme de que todos terminen y asi poder calcular un maximo asegurandome que todos terminaron
+    P(barrera_empelados_libre)
+    barrera_llegada--
+    if (barrera_llegada == 0):
+        for (int i=1 ; i==E ; i++):
+            V(esperando_empleado[i])
+    V(barrera_empleados_libre)
+    P(esperando_empleado[id])
+    maximo(piezas_trabajadas) //retorna el id del empleado que mas piezas realizo
+```
+
 
 #### b. Implemente una solución que contemple cualquier valor de T y E.
+
+*La solucion del ejemplo a es valida para cualquier T y E*
 
 
 ## Ejercicio 9
@@ -516,12 +559,81 @@ Process Profesor:
  - El vidriero continuamente hace vidrios y los deja en otro depósito con capacidad para 50 vidrios. 
  - Los armadores continuamente toman un marco y un vidrio (en ese orden) de los depósitos correspondientes y arman la ventana (cada ventana es armada por un único armador).
 
+```c
+//variables para el manejo del deposito de marcos
+Cola deposito_marcos[30];
+sem deposito_marcos_libre = 1;
+sem total_marcos = 30;
+sem existen_marcos = 0;
+//variables para el manejo del deposito de vidrios
+Cola deposito_vidrios[50];
+sem deposito_vidrios_libre = 1;
+sem total_vidrios = 50;
+sem existen_vidrios = 0;
+//variables para el manejo del deposito de ventanas (sin limite?)
+Cola deposito_ventanas;
+sem deposito_ventanas_libre = 1;
+
+Process Carpintero[id: 1 to 4]:
+    Marco marco
+    while (true):
+        P(total_marcos)  //mientras tenga espacio para depositar marcos, lo creo y lo deposito
+        marco = realizar_marco()
+        P(deposito_marcos_libre)
+        deposito_marcos.push(marco)
+        V(deposito_marcos_libre)
+        V(existen_marcos)  //aviso que existe al menos un marco en el deposito
+
+Process Vidriero:
+    Vidrio vidrio
+    while (true):
+        P(total_vidrios)  //mientras tenga espacio para depositar vidrios, lo creo y lo deposito
+        vidrio = realizar_vidrio()
+        P(deposito_vidrios_libre)
+        deposito_vidrios.push(vidrio)
+        V(deposito_vidrios_libre)
+        V(existen_vidrios)  //aviso que existe al menos un vidrio en el deposito
+
+Process Armador[id: 1 to 2]:
+    Marco marco;
+    Vidrio vidrio;
+    Ventana ventana;
+    while (true):
+        P(existen_marcos)  //si existen marcos bloqueo, tomo uno y libero
+        P(deposito_marcos_libre)
+        marco = deposito_marcos.pop()
+        V(deposito_marcos_libre)
+        V(total_marcos)  // aviso que libere un lugar en el deposito de marcos
+        P(existen_vidrios)  //si existen vidrios bloqueo, tomo uno y libero
+        P(deposito_vidrios_libre)
+        vidrio = deposito_vidrios
+        V(deposito_vidrios_libre)
+        V(total_vidrios)  //aviso que libere un lugar en el deposito de vidrios
+        ventana = armar_ventana(marco, vidrio)
+        P(deposito_ventanas_libres)
+        deposito_ventanas.push(ventana)
+        V(depositos_ventanas_libres)
+
+```
+
 
 ## Ejercicio 10
 ### A una cerealera van T camiones a descargarse trigo y M camiones a descargar maíz. Sólo hay lugar para que 7 camiones a la vez descarguen, pero no pueden ser más de 5 del mismo tipo de cereal.  
 
 
 #### a. Implemente una solución que use un proceso extra que actúe como coordinador entre los camiones. El coordinador debe retirarse cuando todos los camiones han descargado. 
+
+
+```c
+//VER EL EJEMPLO DE PASSING THE BATON ENTRE LECTORES Y ESCRITORES DE LA BD
+
+Process Camion_Trigo[id: 1 to T]:
+
+Process Camion_Maiz[id: 1 to M]:
+
+Process Coordinador:
+
+```
 
 
 #### b. Implemente una solución que no use procesos adicionales (sólo camiones).
