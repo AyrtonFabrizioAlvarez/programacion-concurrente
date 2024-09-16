@@ -666,6 +666,7 @@ Cola cola
 sem cola_libre = 1;
 int personas_en_espera = 0;
 sem despertar_empleado = 0;
+sem espera_para_irse[5] = ([5] 0)
 
 Process Persona[id: 1 to 50]:
     P(cola_libre)
@@ -674,10 +675,14 @@ Process Persona[id: 1 to 50]:
     if ((personas_en_espera mod 5) == 0):
         V(cola_libre)
         V(despertar_empleado)
-    V(cola_libre)
+    else:
+        V(cola_libre)
+    //esta espera es para asegurarse de que terminen de vacunarse el grupo de 5 personas
+    P(espera_para_irse[id])
 
 Process Empleado:
     Persona persona;
+    Cola vacunados
     for (int i=1 ; i==10 ; i++):
         P(despertar_empleado)
         for (int j=1 ; j==5 ; j++):
@@ -685,6 +690,11 @@ Process Empleado:
             persona = cola.pop()
             V(cola_libre)
             vacunar_persona(persona)
+            vacunados.push(persona.id)
+        //luego de vacunarse el grupo de 5 personas, los libero
+        for (int k=1 ; k==5 ; k++);
+            V(espera_para_irse[vacunados.pop()])
+        
 ```
 
 
@@ -692,6 +702,16 @@ Process Empleado:
 ### Simular la atención en una Terminal de Micros que posee 3 puestos para hisopar a 150 pasajeros. En cada puesto hay una Enfermera que atiende a los pasajeros de acuerdo con el orden de llegada al mismo. Cuando llega un pasajero se dirige al Recepcionista, quien le indica qué puesto es el que tiene menos gente esperando. Luego se dirige al puesto y espera a que la enfermera correspondiente lo llame para hisoparlo. Finalmente, se retira.
 
 #### a. Implemente una solución considerando los procesos Pasajeros, Enfermera y Recepcionista. 
+
+```c
+
+Process Pasajeros[id: 1 to P]:
+
+Process Enfermera[id: 1 to 3]:
+
+Process Recepcionista:
+
+```
 
 #### b. Modifique la solución anterior para que sólo haya procesos Pasajeros y Enfermera, siendo los pasajeros quienes determinan por su cuenta qué puesto tiene menos personas esperando. 
 
