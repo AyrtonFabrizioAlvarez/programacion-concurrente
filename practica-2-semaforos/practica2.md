@@ -625,7 +625,6 @@ Process Armador[id: 1 to 2]:
 
 
 ```c
-//VER EL EJEMPLO DE PASSING THE BATON ENTRE LECTORES Y ESCRITORES DE LA BD
 
 Process Camion_Trigo[id: 1 to T]:
 
@@ -639,8 +638,54 @@ Process Coordinador:
 #### b. Implemente una solución que no use procesos adicionales (sólo camiones).
 
 
+```c
+sem total_camiones = 7;
+sem total_trigo = 5;
+sem total_maiz = 5;
+
+Process Camion_Trigo[id: 1 to T]:
+    P(total_trigo)
+    P(total_camiones)
+    //deposito el trigo
+    V(total_camiones)
+    V(total_trigo)
+
+Process Camion_Maiz[id: 1 to M]:
+    P(total_maiz)
+    P(total_camiones)
+    //deposito el maiz
+    V(total_camiones)
+    V(total_maiz)
+```
+
 ## Ejercicio 11
 ### En un vacunatorio hay un empleado de salud para vacunar a 50 personas. El empleado de salud atiende a las personas de acuerdo con el orden de llegada y de a 5 personas a la vez. Es decir, que cuando está libre debe esperar a que haya al menos 5 personas esperando, luego vacuna a las 5 primeras personas, y al terminar las deja ir para esperar por otras 5. Cuando ha atendido a las 50 personas el empleado de salud se retira. Nota: todos los procesos deben terminar su ejecución; suponga que el empleado tienen una función VacunarPersona() que simula que el empleado está vacunando a UNA persona.
+
+```c
+Cola cola
+sem cola_libre = 1;
+int personas_en_espera = 0;
+sem despertar_empleado = 0;
+
+Process Persona[id: 1 to 50]:
+    P(cola_libre)
+    personas_en_espera++;
+    cola.push(id)
+    if ((personas_en_espera mod 5) == 0):
+        V(cola_libre)
+        V(despertar_empleado)
+    V(cola_libre)
+
+Process Empleado:
+    Persona persona;
+    for (int i=1 ; i==10 ; i++):
+        P(despertar_empleado)
+        for (int j=1 ; j==5 ; j++):
+            P(cola_libre)
+            persona = cola.pop()
+            V(cola_libre)
+            vacunar_persona(persona)
+```
 
 
 ## Ejercicio 12
