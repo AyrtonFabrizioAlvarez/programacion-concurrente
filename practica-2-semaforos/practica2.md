@@ -703,13 +703,53 @@ Process Empleado:
 
 #### a. Implemente una solución considerando los procesos Pasajeros, Enfermera y Recepcionista. 
 
+*asumo la existencia de un metodo que recibe un vector de colas menor_cola(), este metodo me retorna el id del vector que tiene la cola con menor cantidad de personas*
+
 ```c
+sem llega_pasajero = 1;
+Cola cola_llegada[P];
+sem cola_llegada_libre = 1;
+Cola espera[3]
+sem espera_libre[3] = ([3] 1)
+sem espera_hisopado[150] = ([150] 0)
+sem persona_en_puesto[3] = ([3] 0)
 
-Process Pasajeros[id: 1 to P]:
-
-Process Enfermera[id: 1 to 3]:
+Process Pasajeros[id: 1 to 150]:
+    P(cola_llegada_libre)
+    cola_llegada.push(id)
+    V(cola_llegada_libre)
+    V(llega_pasajero)
+    P(espera_hisopado[id])
 
 Process Recepcionista:
+    int persona_siguiente = -1;
+    int cola_siguiente = -1;
+    for (int i=1 ; i==150 ; i++):
+        P(llega_pasajero)
+        P(cola_llegada_libre)
+        persona_siguiente = cola_llegada.pop()
+        V(cola_llegada_libre)
+        cola_siguiente = menor_cola(espera)
+        P(espera_libre[cola_siguiente])
+        espera[cola_siguiente].push(persona_siguiente)
+        V(espera_libre[cola_siguiente])
+        V(persona_en_puesto[cola_siguiente])  //aviso a la enfermera que hay una persona esperando en su puesto
+    for (int i=1 ; i=3 ; i++):
+        V(persona_en_puesto[i])    
+        
+
+Process Enfermera[id: 1 to 3]:
+    Persona persona;
+    P(persona_en_puesto[id])  //espero que haya una persona en mi puesto
+    P(espera_libre[id])
+    while (!espera[id].isEmpty()): 
+        persona = espera[id].pop()
+        V(espera_libre[id])
+        persona.hisopar()
+        V(espera_hisopado[persona])  //libero a la persona luego de hisoparla
+        P(persona_en_puesto[id])  //espero que haya otra persona esperando en mi puesto
+        P(espera_libre[id])
+    V(espera_libre[id]) //si la cola estaba vacia significa que me libero la ultima vez la recepcionista y libero la cola de mi puesto
 
 ```
 
