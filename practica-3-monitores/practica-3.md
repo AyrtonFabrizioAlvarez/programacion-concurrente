@@ -623,15 +623,13 @@ Monitor Tarea;
 ## Ejercicio 7
 ### Se debe simular una maratón con C corredores donde en la llegada hay UNA máquina expendedoras de agua con capacidad para 20 botellas. Además, existe un repositor encargado de reponer las botellas de la máquina. Cuando los C corredores han llegado al inicio comienza la carrera. Cuando un corredor termina la carrera se dirigen a la máquina expendedora, espera su turno (respetando el orden de llegada), saca una botella y se retira. Si encuentra la máquina sin  botellas, le avisa al repositor para que cargue nuevamente la máquina con 20 botellas; espera a que se haga la recarga; saca una botella y se retira. Nota: mientras se reponen las botellas se debe permitir que otros corredores se encolen.  
 
-####
-
 ```c
 Process Corredor[id: 1 to C]:
     Carrera.correr()
     ejecutar_carrera()
     Acceso_Maquina.usar_maquina()
-    Acceso_Maquina.liberar_maquina()
     Maquina.sacar_botella(botella)
+    Acceso_Maquina.liberar_maquina()
 
 Process Repositor:
     while (true):
@@ -674,38 +672,29 @@ Monitor Maquina:
     cond repuestas;
 
     procedure sacar_botella():
-        if (botellas > 0):
-            botellas--
-        else:
+        if (botellas == 0):
             signal(sin_botellas)
             wait(repuestas)
+        botellas--
 
     procedure reponer()
-        if (botellas == 0):
-            botellas = 20
-        else:
+        if (botellas > 0):
             wait(sin_botellas)
+        botellas = 20
         signal(repuestas)
-
-
-
 ```
 
 ## Ejercicio 8
-###
+### En un entrenamiento de fútbol hay 20 jugadores que forman 4 equipos (cada jugador conoce el equipo al cual pertenece llamando a la función DarEquipo()). Cuando un equipo está listo (han llegado los 5 jugadores que lo componen), debe enfrentarse a otro equipo que también esté listo (los dos primeros equipos en juntarse juegan en la cancha 1, y los otros dos equipos juegan en la cancha 2). Una vez que el quipo conoce la cancha en la que juega, sus jugadores se dirigen a ella. Cuando los 10 jugadores del partido llegaron a la cancha comienza el partido, juegan  durante  50  minutos,  y  al  terminar  todos  los  jugadores  del  partido  se  retiran  (no  es necesario que se esperen para salir). 
 
-####
 
 ```c
 
 
 
 ```
-
 ## Ejercicio 9
-###
-
-####
+### En un examen de la secundaria hay  un preceptor y una profesora que deben tomar un examen escrito a 45 alumnos. El preceptor se encarga de darle el enunciado del examen a los alumnos cundo los 45 han llegado (es el mismo enunciado para todos). La profesora se encarga de ir corrigiendo los exámenes de acuerdo con el orden en que los alumnos van entregando. Cada alumno al llegar espera a que le den el enunciado, resuelve el examen, y al terminar lo deja para que la profesora lo corrija y le envíe la nota. Nota: maximizar la concurrencia; todos los procesos deben terminar su ejecución; suponga que la profesora tiene una función corregirExamen que recibe un examen y devuelve un entero con la nota.  
 
 ```c
 
@@ -714,9 +703,7 @@ Monitor Maquina:
 ```
 
 ## Ejercicio 10
-###
-
-####
+### En un parque hay un juego para ser usada por  N personas de a una a la vez y de acuerdo al orden en que llegan para solicitar su uso. Además, hay un empleado encargado de desinfectar el juego durante 10 minutos antes de que una persona lo use. Cada persona al llegar espera hasta que el empleado le avisa que puede usar el juego, lo usa por un tiempo y luego lo devuelve. Nota: suponga que la persona tiene una función Usar_juego que simula el uso del juego; y el empleado  una  función  Desinfectar_Juego  que  simula  su  trabajo.  Todos  los  procesos  deben terminar su ejecución. 
 
 ```c
 
