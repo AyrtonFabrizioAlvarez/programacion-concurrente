@@ -621,11 +621,71 @@ Monitor Tarea;
 
 
 ## Ejercicio 7
-###
+### Se debe simular una maratón con C corredores donde en la llegada hay UNA máquina expendedoras de agua con capacidad para 20 botellas. Además, existe un repositor encargado de reponer las botellas de la máquina. Cuando los C corredores han llegado al inicio comienza la carrera. Cuando un corredor termina la carrera se dirigen a la máquina expendedora, espera su turno (respetando el orden de llegada), saca una botella y se retira. Si encuentra la máquina sin  botellas, le avisa al repositor para que cargue nuevamente la máquina con 20 botellas; espera a que se haga la recarga; saca una botella y se retira. Nota: mientras se reponen las botellas se debe permitir que otros corredores se encolen.  
 
 ####
 
 ```c
+Process Corredor[id: 1 to C]:
+    Carrera.correr()
+    ejecutar_carrera()
+    Acceso_Maquina.usar_maquina()
+    Acceso_Maquina.liberar_maquina()
+    Maquina.sacar_botella(botella)
+
+Process Repositor:
+    while (true):
+        Maquina.reponer()
+
+Monitor Carrera:
+    int corredores = 0;
+    cond espera_corredores;
+
+    Procedure correr():
+        corredores++
+        if (corredores < C):
+            wait(espera_corredores)
+        else:
+            signal_all(espera_corredores)
+
+Monitor Acceso_Maquina:
+    int corredores = 0;
+    bool maquina_ocupada = false
+    cond fila
+
+    procedure usar_maquina():
+        if (maquina_ocupada):
+            corredores++
+            wait(fila)
+        else:
+            maquina_ocupada = true
+
+    procedure liberar_maquina():
+        if (corredores == 0):
+            maquina_ocupada = false
+        else
+            corredor--
+            signal(fila)
+            
+Monitor Maquina:
+    int corredores = 0;
+    int botellas = 20;
+    cond sin_botellas;
+    cond repuestas;
+
+    procedure sacar_botella():
+        if (botellas > 0):
+            botellas--
+        else:
+            signal(sin_botellas)
+            wait(repuestas)
+
+    procedure reponer()
+        if (botellas == 0):
+            botellas = 20
+        else:
+            wait(sin_botellas)
+        signal(repuestas)
 
 
 
