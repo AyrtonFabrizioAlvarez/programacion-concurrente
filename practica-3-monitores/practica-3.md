@@ -689,17 +689,129 @@ Monitor Maquina:
 
 
 ```c
+Process Jugador[id: 1 to 20]:
+    int equipo = DarEquipo()
+    int cancha;
+    Equipo[equipo].juntar_equipo(cancha)
+    Cancha[cancha].llegar()
+
+Process Partido[id: 1 to 2]:
+    Cancha[id].empezar()
+    //jugando partido
+    Cancha[id].terminar()
 
 
+Monitor Equipo[id: 1 to 4]:
+    int jugadores = 0;
+    int cancha;
+    cond equipo_completo;
 
+    procedure juntar_equipo(cancha_indicada:int OUT):
+        jugadores++;
+        if (jugadores == 5):
+            Fiscalizador.indicar_cancha(cancha)
+            signal_all(equipo_completo)
+        else:
+            wait(equipo_completo)
+        cancha_indicada = cancha
+        
+Monitor Fiscalizador:
+    int equipos = 0;
+
+    procedure indicar_cancha(cancha_indicada:int OUT):
+        equipos++
+        if (equipos <= 2):
+            cancha_indicada = 1
+        else:
+            cancha_indicada = 2
+
+Monitor Cancha[id: 1 to 2]:
+    int jugadores = 0;
+    cond equipos_completos;
+    cond empezar_partido;
+
+    procedure llegar():
+        jugadores++
+        if (jugadores == 10):
+            signal(empezar_partido)
+        else:
+            wait(equipos_completos)
+
+    procedure empezar():
+        if (jugadores < 10):
+            wait(empezar_partido)
+
+    procedure terminar():
+        signal_all(equipos_completos)
 ```
 ## Ejercicio 9
 ### En un examen de la secundaria hay  un preceptor y una profesora que deben tomar un examen escrito a 45 alumnos. El preceptor se encarga de darle el enunciado del examen a los alumnos cundo los 45 han llegado (es el mismo enunciado para todos). La profesora se encarga de ir corrigiendo los exámenes de acuerdo con el orden en que los alumnos van entregando. Cada alumno al llegar espera a que le den el enunciado, resuelve el examen, y al terminar lo deja para que la profesora lo corrija y le envíe la nota. Nota: maximizar la concurrencia; todos los procesos deben terminar su ejecución; suponga que la profesora tiene una función corregirExamen que recibe un examen y devuelve un entero con la nota.  
 
 ```c
 
+Process Alumno[id: 1 to 45]:
+    Examen examen;
+    int nota;
+    Enunciado.presentarse(examen)
+    //rinde examen
+    Correccion.pedir_correccion(examen, nota)
 
+Process Preceptor:
+    Enunciado.esperar_alumnos()
 
+Process Profesora:
+    Examen examen;
+    int nota;
+    for (int i=1 ; i==45 ; i++):
+        Correccion.tomar_examen(examen)
+        int nota = corregirExamen(examen)
+        Correccion.entregar_nota(nota)
+        
+
+Monitor Correccion:
+    Examen examen;
+    int nota;
+    cond profesora;
+    cond alumno;
+    bool hay_alumno = false;
+
+    Procedure pedir_correccion(examen_alumno:Examen OUT; nota_alumno:int OUT):
+        examen = examen_alumno;
+        hay_alumno = true
+        signal(profesora)
+        wait(alumno)
+        nota_alumno = nota
+        signal(profesora)
+
+    Procedure tomar_examen(examen_profesora:Examen OUT):
+        if (!hay_alumno):
+            wait(profesora):
+        examen_profesora = examen
+
+    Procedure entregar_nota(nota_profesora:int IN):
+        nota = nota_profesora;
+        signal(alumno)
+        wait(profesora)
+        hay_alumno = false
+
+Monitor Enunciado:
+    int alumnos = 0;
+    cond alumnos;
+    cond profesor;
+    Examen examen;
+
+    Procedure presentarse(examen_alumno:Examen OUT):
+        alumnos++
+        if (alumnos == 45):
+            signal(profesor)
+        wait(alumnos)
+        examen_alumno = examen
+
+    Procedure esperar_alumnos():
+        if (alumnos < 45):
+            wait(profesor)
+        examen = new Examen()
+        
 ```
 
 ## Ejercicio 10
@@ -707,6 +819,39 @@ Monitor Maquina:
 
 ```c
 
+Process Empleado:
+    for (int i=1 ; i==N ; i++):
+        desinfectar_juego()
+        Juego.indicar_siguiente()
 
+Process Persona[id: 1 to N]:
+    Juego.solicitar()
+    usar_juego()
+    Juego.liberar()
+
+
+Monitor Juego:
+    int personas;
+    cond cola;
+    cond empleado;
+    bool ocupado = false;
+
+    Procedure solicitar():
+        if (ocupado):
+            personas++
+            wait(cola)
+        else:
+            ocupado = true
+
+    Procedure liberar():
+        signal(empleado)
+
+    Procedure limpieza():
+        if (personas > 0):
+            personas--
+            signal(cola)
+        else:
+            ocupado = false;
+        wait(empleado)
 
 ```
