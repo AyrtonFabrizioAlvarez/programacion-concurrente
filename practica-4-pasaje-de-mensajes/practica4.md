@@ -74,6 +74,7 @@ Process Empleado[id: 1 to 2]:
 chan pedido_caja(int)
 chan caja_indicada[P](int)
 chan pedido[5](int, text)
+chan avanzar()
 
 
 Process Cliente[id: 1 to P]:
@@ -82,26 +83,30 @@ Process Cliente[id: 1 to P]:
     text comprobante;
 
     send pedido_caja(id)                // pido una caja
+    send avanzar()                      // aviso que hay pedido
     receive caja_indicada[id](id_caja)  // espero la recepcion del mismo
     send pedido[id_caja](id, pago)      // pido atencion en la caja indicada
     receive comprobante[id](comprobante)// espero el comprobante
     send liberar_caja(id_caja)          // aviso que libere la caja
+    send avanzar()                      // aviso que hay pedido
+
 
 
 Process Administrador:
     int cajas[5] = ([5] 0)
     int id_aux;
     while (true):
-        receive pedido_caja(id_aux)         // espero un pedido de caja
-        minimo = buscar_minimo(cajas)       // obtengo la caja con menos espera
-        cajas[minimo]++                     // aumento el contador correspondiente
-        send caja_indicada[id_aux](minimo)  // envio la caja indicada al empleado que solicito
 
-        //verifico si alguien libero una caja y decremento
-        if (!empty(liberar_caja))
+        receive avanzar()
+
+        if (!empty(liberar_caja)):       //verifico si alguien libero una caja y decremento
             receive liberar_caja(id_aux)
             cajas[id_aux]--
-
+        else:
+            receive pedido_caja(id_aux)         // espero un pedido de caja
+            minimo = buscar_minimo(cajas)       // obtengo la caja con menos espera
+            cajas[minimo]++                     // aumento el contador correspondiente
+            send caja_indicada[id_aux](minimo)  // envio la caja indicada al empleado que solicito
 
 Process Caja[id: 1 to 5]:
     int id_empleado;
@@ -226,11 +231,143 @@ Nota: ni los administrativos ni el director deben esperar a que se imprima el do
 
 #### a. Implemente una solución para el problema descrito. 
 
+```c
+chan atencion(text)
+
+Process Administrativo[id: 1 to N]:
+    text documento;
+    while (true):
+        send atencion(documento)
+
+Process Impresora[id: 1 to 3]:
+    int id_cliente;
+    while (true):
+        receive atencion(documento)
+        imprimir(documento)
+```
+
 #### b. Modifique la solución implementada para que considere la presencia de un director de oficina que también usa las impresas, el cual tiene prioridad sobre los administrativos. 
+
+```c
+chan atencion_no_prioritaria(text)
+chan atencion_prioritaria(text)
+chan impresora_libre(int)
+chan hay_pedido()
+
+Process Administrativo[id: 1 to N]:
+    text documento;
+    while (true):
+        send atencion_no_prioritaria(documento)
+        send hay_pedido()
+
+Process Director:
+    text documento;
+    while (true):
+        send atencion_prioritaria(documento)
+        send hay_pedido()
+
+Process Coordinador:
+    text documento;
+    int id_impresora;
+    while (true):
+        receive impresora_libre(id_impresora)
+        receive hay_pedido()
+        if (!empty(atencion_prioritaria))
+            receive atencion_prioritaria(documento)
+        else:
+            receive atencion_no_prioritaria(documento)
+        send impresion[id_impresora](documento)
+
+Process Impresora:
+    text documento;
+    while (true):
+        send impresora_libre(id)
+        receive impresion[id](documento)
+        imprimir(documento)
+```
 
 #### c. Modifique la solución (a) considerando que cada administrativo imprime 10 trabajos y que todos los procesos deben terminar su ejecución. 
 
-#### d. Modifique la solución (b) considerando que tanto el director como cada administrativo imprimen 10 trabajos y que todos los procesos deben terminar su ejecución. 
+```c
+chan atencion(text)
+chan impresora_libre(int)
+chan impresion[3](text)
+
+Process Administrativo[id: 1 to N]:
+    text documento;
+    for (int i=1 ; i==10 ; i++):
+        send atencion(documento)
+
+Process Coordinador:
+    text documento;
+    int id_impresora;
+    for (int i=1 ; i==10*N ; i++):
+        receive impresora_libre(id_impresora)
+        receive atencion(documento)
+        send impresion[id_impresora](documento)
+    documento = "VACIO"
+    for (int i=1 ; i==3 ; i++):
+        send impresion[i](documento)
+
+Process Impresora[id: 1 to 3]:
+    text documento;
+    bool seguir = true
+    while (seguir):
+        send impresora_libre(id)
+        receive impresion[id](documento)
+        if (documento == "VACIO"):
+            seguir = false
+        else
+            imprimir(documento)
+```
+
+#### d. Modifique la solución (b) considerando que tanto el director como cada administrativo imprimen 10 trabajos y que todos los procesos deben terminar su ejecución.
+
+```c
+chan atencion_no_prioritaria(text)
+chan atencion_prioritaria(text)
+chan hay_pedido()
+chan impresion[3](text)
+chan impresora_libre(int)
+
+Process Administrativo[id: 1 to N]:
+    text documento;
+    for (int i=1; i==10 ; i++):
+        send atencion_no_prioritaria(documento)
+        send hay_pedido()
+
+Process Director:
+    text documento;
+    for (int i=1; i==10 ; i++):
+        send atencion_prioritaria(documento)
+        send hay_pedido()
+
+Process Coordinador:
+    text documento;
+    int id_impresora;
+    for (int i=1 ; i==(10*N)+10 ; i++):
+        receive impresora_libre(id_impresora)
+        receive hay_pedido()
+        if(!empty(atencion_prioritaria)):
+            receive atencion_prioritaria(documento)
+        else:
+            receive atencion_no_prioritaria(documento)
+        send impresion[id_impresora](documento)
+    documento = "VACIO"
+    for (int i=1 ; i==3 ; i++):
+        send impresion[i](documento)
+
+Process Impresora[id: 1 to 3]:
+    text documento;
+    bool seguir = true;
+    while (seguir):
+        send impresora_libre(id)
+        receive impresion[id](documento)
+        if (documento == "VACIO")
+            seguir = false;
+        else:
+            imprimir(documento)
+```
 
 #### e. Si la solución al ítem d) implica realizar Busy Waiting, modifíquela para evitarlo.
  
