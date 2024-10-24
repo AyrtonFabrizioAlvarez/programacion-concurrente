@@ -375,29 +375,322 @@ Process Impresora[id: 1 to 3]:
 # PMS
 
 ## Ejercicio 1
-### Suponga que existe un antivirus distribuido que se compone de R procesos robots Examinadores y 1 proceso Analizador. Los procesos Examinadores están buscando continuamente posibles sitios web infectados; cada vez que encuentran uno avisan la dirección y luego continúan buscando. El proceso Analizador se encarga de hacer todas las pruebas necesarias con cada uno de los sitios encontrados por los robots para determinar si están o no infectados.  
+### Suponga que existe un antivirus distribuido que se compone de R procesos robots Examinadores y 1 proceso Analizador. Los procesos Examinadores están buscando continuamente posibles sitios web infectados; cada vez que encuentran uno avisan la dirección y luego continúan buscando. El proceso Analizador se encarga de hacer todas las pruebas necesarias con cada uno de los sitios encontrados por los robots para determinar si están o no infectados. 
+
 #### a. Analice el problema y defina qué procesos, recursos y comunicaciones serán necesarios/convenientes para resolverlo. 
+
+
 #### b. Implemente una solución con PMS sin tener en cuenta el orden de los pedidos. 
+
+```c
+//TENER EN CUENTA QUE ESTA SOLUCION REALIZA DEMORA INNECESARIA Y NO MAXIMIZA LA CONCURRENCIA
+Process Examinador[id: 1 to R]:
+    text reporte;
+    while (true):
+        reporte = generar_reporte()
+        Analizador ! problema(reporte)
+
+Process Analizador:
+    text reporte;
+    while (true):
+        Examinador[*] ? problema(reporte)
+        realizar_pruebas(reporte)
+```
+
 #### c. Modifique el inciso (b) para que el Analizador resuelva los pedidos en el orden en que se hicieron.
+
+```c
+Process Examinador[id: 1 to R]:
+    text reporte;
+    while (true):
+        reporte = generar_reporte()
+        Intermedio ! problema(reporte)
+
+Process Intermedio:
+    Cola cola;
+    text reporte;
+    while (true):
+        do
+            Examinador[*] ? problema(reporte) -> cola.push(reporte)
+            !cola.isEmpty() ; Analizador ? listo() -> Analizador ! problema(cola.pop())
+        od
+
+Process Analizador:
+    text reporte;
+    while (true):
+        Intermedio ! listo()
+        Intermedio ? problema(reporte)
+        realizar_pruebas(reporte)
+```
 
 
 ## Ejercicio 2
 ### En un laboratorio de genética veterinaria hay 3 empleados. El primero de ellos continuamente prepara las muestras de ADN; cada vez que termina, se la envía al segundo empleado  y  vuelve  a  su  trabajo.  El  segundo  empleado  toma  cada  muestra  de  ADN preparada,  arma  el  set  de  análisis  que  se  deben  realizar  con  ella  y  espera  el  resultado  para archivarlo.  Por  último,  el  tercer  empleado  se  encarga  de  realizar  el  análisis  y  devolverle  el resultado al segundo empleado.
 
+```c
+
+Process Empleado_1:
+    text muestra;
+    while (true):
+        muestra = preparar_muestra()
+        Coordinador ! toma(muestra)
+
+Process Coordinador:
+    Cola cola;
+    text muestra;
+    while (true):
+        do
+            Empleado_1 ? toma(muestra) -> cola.push(muestra)
+            !cola.isEmpty() -> Empleado_2 ? listo() -> Empleado_2 ! muestra(cola.pop())
+        od
+
+Process Empleado_2:
+    text muestra;
+    text set_analisis;
+    text res;
+    while (true):
+        Coordinador ! listo()
+        Coordinador ? muestra(muestra)
+        set_analisis = preparar_set(muestra)
+        Empleado_3 ! set(set_analisis)
+        Empleado_3 ? resultado(res)
+        archivar(res)
+
+Process Empleado_3:
+    text set_analisis;
+    text res;
+    while (true):
+        Empleado_2 ? set(set_analisis)
+        res = generar_resultado(set_analisis)
+        Empleado_2 ! resultado(res)
+
+```
+
 ## Ejercicio 3
-### En un examen final hay N alumnos y P profesores. Cada alumno resuelve su examen, lo entrega y espera a que alguno de los profesores lo corrija y le indique la nota. Los profesores corrigen los exámenes respetando el orden en que los alumnos van entregando.  
-#### a. Considerando que P=1. 
-#### b. Considerando que P>1. 
-#### c. Ídem b) pero considerando que los alumnos no comienzan a realizar su examen hasta que todos hayan llegado al aula.
+### En un examen final hay N alumnos y P profesores. Cada alumno resuelve su examen, lo entrega y espera a que alguno de los profesores lo corrija y le indique la nota. Los profesores corrigen los exámenes respetando el orden en que los alumnos van entregando.
 Nota: maximizar la concurrencia; no generar demora innecesaria; todos los procesos deben terminar su ejecución 
+
+#### a. Considerando que P=1. 
+
+```c
+Process Alumno[id: 1 to N]:
+    text examen;
+    int nota;
+    examen = rendir_examen()
+    Coordinador ! termino_examen(id, examen)
+    Profesor ? espera_nota(nota)
+
+Process Coordinador:
+    Cola cola;
+    int rindieron = 0;
+    int id_alumno;
+    text examen;
+    do
+        (rindieron < N) ; Alumno[*] ? termino_examen(id_alumno, examen) -> cola.push(id_alumno, examen); rindieron++;
+        (!cola.isEmpty()) ; Profesor ? listo() -> Profesor ! para_corregir(cola.pop());
+    od
+
+Process Profesor:
+    int id_alumno;
+    text examen;
+    int nota;
+    for (int i=1 ; i==N ; i++):
+        Coordinador ! listo()
+        Coordinador ? para_corregir(id_alumno, examen)
+        nota = corregir_examen(examen)
+        Alumno[id_alumno] ! espera_nota(nota)
+
+```
+
+#### b. Considerando que P>1. 
+
+```c
+
+Process Alumno[id: 1 to N]:
+    int nota, id_profesor;
+    text examen = rendir_examen()
+    Coordinador ! termino_examen(id, examen)
+    Profesor[*] ? espera_nota(nota)
+
+Process Coordinador:
+    Cola cola;
+    int id_profesor, id_alumno;
+    int rindieron, corregidos = 0;
+    text examen;
+    do
+        (rindieron < N) ; Alumno[*] ? termino_examen(id_alumno, examen) -> cola.push(id_alumno, examen); rindieron++;
+        (!cola.isEmpty()) ; Profesor[*] ? listo(id_profesor)-> Profesor[id_profesor] ? para_corregir(cola.pop())
+    od
+    for (int i=1 ; i==P ; i++):
+        Profesor[*] ? listo(id_profesor)
+        Profesor[id_profesor] ! para_corregir(-1, "VACIO")
+
+Process Profesor[id: 1 to P]:
+    bool seguir = true;
+    int id_alumno;
+    text examen;
+    while (seguir):
+        Coordinador ! listo(id):
+        Coordinador ? para_coregir(id_alumno, examen)
+        if (id_alumno != -1):
+            nota = corregir_examen(examen)
+            Alumno[id_alumno] ! espera_nota(id_alumno)
+        else:
+            seguir = false
+```
+
+#### c. Ídem b) pero considerando que los alumnos no comienzan a realizar su examen hasta que todos hayan llegado al aula.
  
+```c
+
+Process Alumno[id: 1 to N]:
+    int nota, id_profesor;
+    Coordinador ! llegue()
+    Coordinador ? empezar()
+    text examen = rendir_examen()
+    Coordinador ! termino_examen(id, examen)
+    Profesor[*] ? espera_nota(nota)
+
+Process Coordinador:
+    Cola cola;
+    int id_profesor, id_alumno;
+    int rindieron, corregidos = 0;
+    text examen;
+    for (int i=1 ; i==N ; i++):
+        Alumno[*] ? llegue()
+    for (int i=1 ; i==N ; i++):
+        Alumno[i] ! empezar()
+    
+    do
+        (rindieron < N) ; Alumno[*] ? termino_examen(id_alumno, examen) -> cola.push(id_alumno, examen); rindieron++;
+        (!cola.isEmpty()) ; Profesor[*] ? listo(id_profesor)-> Profesor[id_profesor] ? para_corregir(cola.pop())
+    od
+
+    for (int i=1 ; i==P ; i++):
+        Profesor[*] ? listo(id_profesor)
+        Profesor[id_profesor] ! para_corregir(-1, "VACIO")
+
+Process Profesor[id: 1 to P]:
+    bool seguir = true;
+    int id_alumno;
+    text examen;
+    while (seguir):
+        Coordinador ! listo(id):
+        Coordinador ? para_coregir(id_alumno, examen)
+        if (id_alumno != -1):
+            nota = corregir_examen(examen)
+            Alumno[id_alumno] ! espera_nota(id_alumno)
+        else:
+            seguir = false
+```
+
  
 ## Ejercicio 4
 ### En una exposición aeronáutica hay un simulador de vuelo (que debe ser usado con exclusión mutua) y un empleado encargado de administrar su uso. Hay P personas que esperan a que el empleado lo deje acceder al simulador, lo usa por un rato y se retira. 
+Nota: cada persona usa sólo una vez el simulador.
+
 #### a. Implemente una solución donde el empleado sólo se ocupa de garantizar la exclusión mutua. 
+
+```c
+
+Process Persona[id: 1 to P]:
+    Empleado ! solicitar(id)
+    usar_simulador()
+    Empleado ! liberar()
+
+Process Empleado:
+    int id_persona;
+    Persona[*] ? solicitar(id_persona)
+    Persona[id_persona] ? liberar()
+
+```
+
+
 #### b. Modifique la solución anterior para que el empleado considere el orden de llegada para dar acceso al simulador.
-Nota: cada persona usa sólo una vez el simulador.  
+
+```c
+
+Process Persona[id: 1 to P]:
+    Empleado ! solicitar(id)
+    Empleado ? pasar()
+    usar_simulador()
+    Empleado ! liberar()
+
+Process Empleado:
+    Cola cola;
+    int id_persona;
+    bool ocupado = false;
+    do
+        Persona[*] ? solicitar(id_persona)->   
+                                                if (ocupado):
+                                                    cola.push(id_persona)
+                                                else:
+                                                    Persona[id_persona] ! pasar()
+                                                    ocupado = true
+
+        Persona[*] ? liberar()->    
+                                    if (cola.isEmpty()):
+                                        ocupado = false
+                                    else:
+                                        Persona[cola.pop()] ! pasar()
+    od
+
+```
+
+```c
+
+Process Persona[id: 1 to N]:
+    Coordinador ! solicitar(id)
+    Empleado ? pasar()
+    usar_simulador()
+    Empleado ! liberar()
+
+Process Coordinador:
+    Cola cola;
+    int personas = 0;
+    int id_persona;
+    do
+        (personas < N) ; Persona[*] ? solicitar(id_persona) -> cola.push(id_persona); personas++
+        (!cola.isEmpty()) ; Empleado ? siguiente() -> Empleado ! dar_acceso(cola.pop())
+    od
+
+Process Empleado:
+    int id_persona;
+    for (int i=1 ; i==P ; i++)
+        Coordinador ! siguiente()
+        Coordinador ? dar_acceso(id_persona)
+        Persona[id_persona] ! pasar()
+        Persona[id_persona] ? liberar()
+
+
+```
 
 ## Ejercicio 5
 ### En un estadio de fútbol hay una máquina expendedora de gaseosas que debe ser usada por E Espectadores de acuerdo con el orden de llegada. Cuando el espectador accede a la máquina en su turno usa la máquina y luego se retira para dejar al siguiente.
 Nota: cada Espectador una sólo una vez la máquina. 
+
+```c
+
+Process Espectador[id: 1 to E]:
+    Maquina ! solicitar(id)
+    Maquina ? pasar()
+    usar_maquina()
+    Maquina ! liberar()
+
+Process Maquina:
+    Cola cola;
+    int id_espectador;
+    bool ocupado = false;
+    do
+        Espectador[*] ? solicitar(id_espectador) -> if (ocupado):
+                                                        cola.push(id_espectador)
+                                                    else:
+                                                        ocupado = true
+                                                        Espectador[id_espectador] ! pasar()
+        Espectador[*] ? liberar() -> if (cola.isEmpty())
+                                        ocupado = false
+                                    else:
+                                        Espectador[cola.pop()] ! pasar()
+    od
+
+```
