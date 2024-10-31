@@ -557,12 +557,60 @@ BEGIN
 END Playa;
 ```
 
-## Ejercicio 5 (no numerado)
+## Ejercicio (no numerado)
 ### En  un  sistema  para  acreditar  carreras  universitarias,  hay  UN  Servidor  que  atiende  pedidos de  U  Usuarios  de  a  uno  a  la  vez  y  de  acuerdo  con  el  orden  en  que  se  hacen  los  pedidos. Cada  usuario  trabaja  en  el  documento  a  presentar,  y  luego  lo  envía  al  servidor;  espera  la respuesta de este que le indica si está todo bien o hay algún error. Mientras haya algún error, vuelve a trabajar con el documento y a enviarlo al servidor. Cuando el servidor le responde que está todo bien, el usuario se retira. Cuando un usuario envía un pedido espera a lo sumo 2 minutos a que sea recibido por el servidor, pasado ese tiempo espera un minuto y vuelve a intentarlo (usando el mismo documento). 
 
 ```ada
 
+PROCEDURE Universidad IS;
 
+    TASK Servidor IS;
+        ENTRY dar_documento(documento:Documento IN)
+    END Servidor;
+    TASK BODY Servidor IS;
+    BEGIN
+        LOOP
+            SELECT
+
+                ACCEPT dar_documento(documento:Documento IN, ok:boolean OUT)DO
+                    ok = analizar_documento(documento);
+                END dar_documento
+            
+            END SELECT;
+        END LOOP;
+    END Servidor;
+
+
+    TASK TYPE Usuario;
+    TASK BODY Usuario IS;
+        documento:Documento;
+        termine:boolean
+    BEGIN
+        ACCEPT recibir_id(num:int IN) DO
+            id = num;
+        END recibir_id; 
+        ok = false;
+        termine = false;
+        documento = generar_documento()
+        LOOP (not termine)
+            SELECT
+                Servidor.dar_documento(documento, ok);
+                IF (ok) THEN;
+                    termine = true;
+                ELSE;
+                    documento = revisar_documento(documento)
+                END IF;
+            OR DELAY(120)
+                DELAY(60)
+            END SELECT;
+        END LOOP;
+    END Usuario;
+
+    v_usuarios = array (1..U) of Usuario;
+
+BEGIN 
+    null;
+END Universidad;
 
 ```
 
@@ -571,17 +619,111 @@ END Playa;
 Nota: maximizar la concurrencia; este cálculo se hace una sola vez. 
 
 ```ada
+PROCEDURE Promedio IS;
+
+    TASK TYPE Worker IS;
+
+    END Worker;
+    TASK BODY Worker IS;
+        numeros: array (1..100000) of int;
+        total:int;
+    BEGIN
+        total = 0;
+
+        Coordinador.espera();
+        Coordinador.empezar();
+        FOR i IN 1..100000 LOOP
+            total += numeros(i);
+        END FOR;
+        Coordinador.subtotal(total);
+    END Worker;
+
+    TASK Coordinador IS;
+        ENTRY espera();
+        ENTRY empezar();
+        ENTRY subtotal(sub_total:int IN);
+    END Coordinador;
+    TASK BODY Coordinador IS;
+        total, promedio:int;
+    BEGIN
 
 
+        FOR i IN 1..10 LOOP
+            ACCEPT espera();
+        END FOR;
+        FOR i IN 1..10 LOOP
+            ACCEPT empezar();
+        END FOR;
+        FOR i IN 1..10 LOOP
+            ACCEPT subtotal(sub_total:int IN) DO
+                total += sub_total;
+            END subtotal;
+        END FOR;
+        promedio = total / 1000000;
+    END Coordinador;
 
+    v_workers: array (1..10) of Worker;
+
+BEGIN
+    null;
+END Promedio;
 ```
 
 ## Ejercicio 7
 ### Hay un sistema de reconocimiento de huellas dactilares de la policía que tiene 8 Servidores para realizar el reconocimiento, cada uno de ellos trabajando con una Base de Datos propia; a su vez hay un Especialista que utiliza indefinidamente. El sistema funciona de la siguiente manera: el Especialista toma una imagen de una huella (TEST) y se la envía a los servidores para que cada uno de ellos le devuelva el código y el valor de similitud de la huella que más se  asemeja  a  TEST  en  su  BD;  al  final  del  procesamiento,  el  especialista  debe  conocer  el código  de  la  huella  con  mayor  valor  de  similitud  entre  las  devueltas  por  los  8  servidores. Cuando  ha  terminado  de  procesar  una  huella  comienza  nuevamente  todo  el  ciclo.  Nota: suponga  que  existe  una  función  Buscar(test,  código,  valor)  que  utiliza  cada  Servidor  donde recibe  como  parámetro  de  entrada  la  huella  test,  y  devuelve  como  parámetros  de  salida  el código  y  el  valor  de  similitud  de  la  huella  más  parecida  a  test  en  la  BD  correspondiente. Maximizar la concurrencia y no generar demora innecesaria. 
 
 ```ada
+PROCEDURE Sistema IS;
+
+    TASK Especialista IS;
+        ENTRY resultado(cod:int IN, sim:int IN);
+    END Especialista;
+    TASK BODY Especialista;
+        huella:Huella;
+        codigo, similitud, max, max_cod:int;
+    BEGIN
+        LOOP
+            max = -1;
+            codigo = 0;
+            similitud = 0;
+            huella = tomar_huella()
+            FOR i IN 1..8 LOOP
+                Servidor(i).entregar_huella(huella)
+            END FOR;
+            FOR i IN 1..8 LOOP
+                    ACCEPT resultado(cod:int IN, sim:int IN) DO
+                        codigo = cod;
+                        similitud = sim;
+                    END resultado;
+                    IF (similitud > max) THEN
+                        max = similitud;
+                        max_cod = codigo;
+                    END IF;
+            END FOR;
+        END LOOP;
+    END Especialista;
 
 
+
+    TASK TYPE Servidor IS;
+        ENTRY entregar_huella(huella:Huella IN)
+    END Servidor;
+    TASK BODY Servidor IS;
+        test:Huella;
+        codigo, valor:int;
+    BEGIN
+        LOOP
+            ACCEPT entregar_huella(huella:Huella IN) DO
+                test = huella;
+            END entregar_huella;
+            Buscar(test, codigo, valor)
+            Especialista.resultado(codigo, valor)
+        END LOOP;
+    END Servidor;
+
+BEGIN
+    null;
+END Sistema;
 
 ```
 
@@ -590,7 +732,90 @@ Nota: maximizar la concurrencia; este cálculo se hace una sola vez.
 
 
 ```ada
+PROCEDURE Limpieza IS;
 
+    TASK TYPE Persona IS;
+        ENTRY recibir_id(num:int IN);
+        ENTRY recibir_camion();
+    END Persona;
+    TASK BODY Persona;
+        paso_camion:boolean;
+        id:int;
+    BEGIN
+        ACCEPT recibir_id(num:int IN); DO
+            id = num;
+        END recibir_id;
+        paso_camion = false;
+        LOOP (NOT paso_camion);
+            Empresa.recibir_reclamo(id)
+            SELECT
+                ACCEPT recibir_camion();
+                paso_camion = true;
+            OR DELAY (900)
+                null;
+        END LOOP;
+    END Persona;
 
+    TASK TYPE Camion IS;
+        ENTRY atender_reclamo(id_p:int IN)
+    END Camion;
+    TASK BODY Camion;
+        id_persona:int
+    BEGIN
+        LOOP
+            Empresa.camion_libre(id_persona);
+            personas(id_persona).recibir_camion()
+            recolectar_residuos(id_persona)
+        END LOOP;
+    END Camion;
 
+    TASK Empresa IS;
+        ENTRY recibir_reclamo(id:int IN)
+        ENTRY camion_libre(id:int OUT)
+    END Empresa;
+    TASK BODY Empresa;
+        id_persona:int;
+        id_camion:int;
+        id_max:int;
+        reclamos_personas: array (1..P) of int;
+        reclamos_activos:int;
+    BEGIN
+        FOR i IN 1..P LOOP
+            reclamos_personas(i) = 0;
+        END LOOP;
+        reclamos_activos = 0;
+        LOOP
+            max = -1;
+            SELECT
+
+                ACCEPT recibir_reclamo(id:int IN) DO
+                    id_persona = id;
+                END recibir_reclamo;
+                IF (reclamos_personas(id_persona) != -1) THEN;
+                    IF (reclamos_personas(id_persona) == 0) THEN;
+                        reclamos_activos++;
+                    END IF;
+                    reclamos_personas(id_persona)++
+                END IF;
+
+            OR
+
+                WHEN (reclamos_activos > 0) => ACCEPT camion_libre(id:int OUT) DO
+                    calcular_maximo(reclamos_personas, id_max)
+                    id = id_max
+                    reclamos_personas(id_max) = -1;
+                END camion_libre;
+
+            
+            END SELECT;
+        END LOOP;
+    END Empresa;
+
+personas: array (1..P) of Persona;
+
+BEGIN
+    FOR i IN 1..P LOOP
+        personas(i).recibir_id(i)
+    END LOOP;
+END Limpieza;
 ```
