@@ -186,14 +186,17 @@ chan pedido(int, int);
 chan espera_cabina[N](int)
 chan pago(int, int)
 chan ticket[N](text);
+chan aviso();
 
 Process Cliente[id: 1 to N]:
     int cabina;
     text ticket;
     send pedido(id)
+    send aviso()
     receive espera_cabina[id](cabina)
     usar_cabina(cabina)
     send pago(id, cabina)
+    send aviso()
     receive ticket[id](ticket)
 
 Process Empleado:
@@ -203,7 +206,7 @@ Process Empleado:
     text ticket;
 
     while (true):
-        receive pedido(id_cliente)
+        receive aviso()
         if (!empty(pago)):
             receive pago(id_cliente, id_cabina)
             cabinas[id_cabina] = false
